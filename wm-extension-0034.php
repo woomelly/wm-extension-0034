@@ -76,4 +76,65 @@ if ( ! function_exists( 'woomelly_sync_meli_woo_old_product_success_ext_034' ) )
 	}
 }
 
+if ( ! function_exists( 'woomelly_after_select_filters_ext_034' ) ) {
+	add_action( 'woomelly_after_select_filters', 'woomelly_after_select_filters_ext_034', 10 );
+	function woomelly_after_select_filters_ext_034 () {
+		global $typenow;
+		$woomelly_filter_diff_price = '';
+		if ( isset($_GET['woomelly_filter_diff_price']) && $_GET['woomelly_filter_diff_price'] != "" ){
+			$woomelly_filter_diff_price = wc_clean( wp_unslash( $_GET['woomelly_filter_diff_price'] ) );
+		}
+		if ( 'product' === $typenow ) {
+		?>
+			<select name="woomelly_filter_diff_price" id="woomelly_filter_diff_price">
+				<option value=""><?php echo __("Filtrar por diferencia precio", "woomelly"); ?></option>
+				<option value="with_diff" <?php echo (($woomelly_filter_diff_price=="with_diff")? "selected=\"selected\"" : ""); ?>><?php echo __( "— Con diferencia —", "woomelly" ); ?></option>
+				<option value="without_diff" <?php echo (($woomelly_filter_diff_price=="without_diff")? "selected=\"selected\"" : ""); ?>><?php echo __( "— Sin diferencia —", "woomelly" ); ?></option>
+			</select>
+			<?php
+		}
+	}
+}
+
+if ( ! function_exists( 'woomelly_search_other_custom_fields_ext_034' ) ) {
+	add_filter( 'woomelly_search_other_custom_fields', 'woomelly_search_other_custom_fields_ext_034', 10, 2 );
+	function woomelly_search_other_custom_fields_ext_034 ( $wp, $active_post_type ) {
+		global $wpdb;
+		$woomelly_filter_diff_price = "";
+		if ( isset($_GET['woomelly_filter_diff_price']) ) {
+			$woomelly_filter_diff_price = wc_clean( wp_unslash( $_GET['woomelly_filter_diff_price'] ) );
+		}
+		if ( $woomelly_filter_diff_price != "" && in_array($woomelly_filter_diff_price, array('with_diff', 'without_diff'))) {
+			if ( !$active_post_type ) {
+				$wp->set('post_type', 'product');
+			}
+			$diff_price_ids = $wpdb->get_results( "SELECT post_id, meta_value FROM {$wpdb->postmeta} WHERE meta_key = 'price_ext_034' AND meta_value <> '';", OBJECT );
+			if ( !empty($diff_price_ids) ) {
+				$wp->query['post__in'] = array();
+				foreach ( $diff_price_ids as $value ) {
+					$post = wc_get_product( $value->post_id );
+					if ( is_object($post) ) {
+						$meli_price = floatval($value->meta_value);
+						if ( 'with_diff' == $woomelly_filter_diff_price ) {
+							if ( $post->get_price() != $meli_price ) {
+								$wp->query_vars['post__in'][] = $post->get_id();
+							}
+						} else {
+							$meli_price = floatval($value->meta_value);
+							if ( $post->get_price() == $meli_price ) {
+								$wp->query_vars['post__in'][] = $post->get_id();
+							}
+						}
+					}
+					unset( $post );
+				}
+			} else {
+				$wp->query['post__in'] = array(-1);
+				$wp->query_vars['post__in'] = array(-1);
+			}
+		}
+		return $wp;
+	}
+}
+
 ?>
